@@ -147,13 +147,14 @@ async def create_user(user: UserCreate, request: Request, db: AsyncSession = Dep
     if not created_user:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user")
     
-    
     return UserResponse.model_construct(
         id=created_user.id,
         bio=created_user.bio,
         first_name=created_user.first_name,
         last_name=created_user.last_name,
         profile_picture_url=created_user.profile_picture_url,
+        linkedin_profile_url=created_user.linkedin_profile_url,
+        github_profile_url=created_user.github_profile_url,
         nickname=created_user.nickname,
         email=created_user.email,
         last_login_at=created_user.last_login_at,
@@ -161,7 +162,6 @@ async def create_user(user: UserCreate, request: Request, db: AsyncSession = Dep
         updated_at=created_user.updated_at,
         links=create_user_links(created_user.id, request)
     )
-
 
 @router.get("/users/", response_model=UserListResponse, tags=["User Management Requires (Admin or Manager Roles)"])
 async def list_users(
