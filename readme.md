@@ -1,3 +1,9 @@
+# Reflection Paragraphs on Homework 10
+
+This assignment was a great learning experience, especially in terms of improving my technical skills around API development and error handling. The most challenging part was dealing with the initial issue where the nickname in the response body did not match the input provided in the request body. I had no idea where the problem was coming from or where to look. It took a while to understand that the POST /users/ endpoint was modifying the nickname without any clarification or feedback to the client, which caused confusion. After a lot of trial and error, I was finally able to track down the cause of the issue, which turned out to be how the nickname was being generated and saved in the backend. Once I figured it out, I was able to adjust the logic to ensure that the input nickname was used correctly and that the client would receive the expected response.
+
+Collaborating on this assignment, even if indirectly, helped me refine my approach. It was insightful to see how a systematic process of adding checks and validating input could improve both functionality and user experience. Once the issue was identified, it was smooth sailing to implement the solution, and the process of refining the error message was a good reminder of how important it is to ensure the user experience is front and center. Going forward, I will definitely rely more on debugging techniques and improve how I log errors to make troubleshooting faster and more efficient. This assignment highlighted the value of persistence and attention to detail, especially when dealing with complex issues.
+
 # Event Manager Company: Software QA Analyst/Developer Onboarding Assignment
 
 Welcome to the Event Manager Company! As a newly hired Software QA Analyst/Developer and a student in software engineering, you are embarking on an exciting journey to contribute to our project aimed at developing a secure, robust REST API that supports JWT (JSON Web Token ) token-based OAuth2 authentication. This API serves as the backbone of our user management system and will eventually expand to include features for event management and registration.
@@ -167,4 +173,3 @@ To complete this assignment, submit the following:
  - [Alembic Documentation](https://alembic.sqlalchemy.org/en/latest/index.html) - Alembic is a lightweight database migration tool for usage with SQLAlchemy. It allows you to define and manage database schema changes over time, ensuring that the database structure remains consistent across different environments. Refer to the Alembic documentation to learn how to create and apply database migrations in the project.
 
 These resources will provide you with a solid foundation to understand the tools, technologies, and concepts used in the project. Don't hesitate to explore them further and consult the documentation whenever you encounter challenges or need clarification.
-
