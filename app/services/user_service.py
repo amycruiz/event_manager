@@ -38,6 +38,14 @@ class UserService:
         return result.scalars().first() if result else None
 
     @classmethod
+    async def _generate_unique_nickname(cls, session: AsyncSession) -> str:
+        """Generate a unique nickname for the user."""
+        new_nickname = generate_nickname()
+        while await cls.get_by_nickname(session, new_nickname):
+            new_nickname = generate_nickname()
+        return new_nickname
+
+    @classmethod
     async def get_by_id(cls, session: AsyncSession, user_id: UUID) -> Optional[User]:
         return await cls._fetch_user(session, id=user_id)
 
@@ -57,18 +65,19 @@ class UserService:
             if existing_user:
                 logger.error("User with given email already exists.")
                 return None
+            
+            if not validated_data.get('nickname'):
+                validated_data['nickname'] = await cls._generate_unique_nickname(session)
+            
             validated_data['hashed_password'] = hash_password(validated_data.pop('password'))
             new_user = User(**validated_data)
             new_user.verification_token = generate_verification_token()
-            new_nickname = generate_nickname()
-            while await cls.get_by_nickname(session, new_nickname):
-                new_nickname = generate_nickname()
-            new_user.nickname = new_nickname
+            
             session.add(new_user)
             await session.commit()
             await email_service.send_verification_email(new_user)
-            
             return new_user
+ 
         except ValidationError as e:
             logger.error(f"Validation error during user creation: {e}")
             return None
@@ -79,10 +88,22 @@ class UserService:
             # validated_data = UserUpdate(**update_data).dict(exclude_unset=True)
             validated_data = UserUpdate(**update_data).dict(exclude_unset=True)
 
+            if 'nickname' in validated_data:
+                existing_user = await cls.get_by_nickname(session, validated_data['nickname'])
+                if existing_user and existing_user.id != user_id:
+                    raise ValueError("Nickname is already taken")
+                
             if 'password' in validated_data:
                 validated_data['hashed_password'] = hash_password(validated_data.pop('password'))
-            query = update(User).where(User.id == user_id).values(**validated_data).execution_options(synchronize_session="fetch")
+            
+            query = (
+                update(User)
+                .where(User.id == user_id)
+                .values(**validated_data)
+                .execution_options(synchronize_session="fetch")
+            )
             await cls._execute_query(session, query)
+            
             updated_user = await cls.get_by_id(session, user_id)
             if updated_user:
                 session.refresh(updated_user)  # Explicitly refresh the updated user object
@@ -97,13 +118,25 @@ class UserService:
 
     @classmethod
     async def delete(cls, session: AsyncSession, user_id: UUID) -> bool:
-        user = await cls.get_by_id(session, user_id)
-        if not user:
-            logger.info(f"User with ID {user_id} not found.")
+        try:
+            user = await cls.get_by_id(session, user_id)
+            if not user:
+                logger.info(f"User with ID {user_id} not found.")
+                return False
+        
+            await session.delete(user)
+            await session.commit()
+            logger.info(f"User with ID {user_id} deleted successfully.")
+            return True
+
+        except SQLAlchemyError as e:
+            logger.error(f"Database error during user deletion: {e}")
+            await session.rollback()
             return False
-        await session.delete(user)
-        await session.commit()
-        return True
+
+        except Exception as e:
+            logger.error(f"Unexpected error during user deletion: {e}")
+            return False
 
     @classmethod
     async def list_users(cls, session: AsyncSession, skip: int = 0, limit: int = 10) -> List[User]:

@@ -50,26 +50,41 @@ async def get_user(user_id: UUID, request: Request, db: AsyncSession = Depends(g
         db: Dependency that provides an AsyncSession for database access.
         token: The OAuth2 access token obtained through OAuth2PasswordBearer dependency.
     """
-    user = await UserService.get_by_id(db, user_id)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    try:
+        print(f"Token: {token}")
+        print(f"Current User: {current_user}")
 
-    return UserResponse.model_construct(
-        id=user.id,
-        nickname=user.nickname,
-        first_name=user.first_name,
-        last_name=user.last_name,
-        bio=user.bio,
-        profile_picture_url=user.profile_picture_url,
-        github_profile_url=user.github_profile_url,
-        linkedin_profile_url=user.linkedin_profile_url,
-        role=user.role,
-        email=user.email,
-        last_login_at=user.last_login_at,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-        links=create_user_links(user.id, request)  
-    )
+        user = await UserService.get_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        print(f"User Retrieved: {user}")
+
+        response = UserResponse.model_construct(
+            id=user.id,
+            nickname=user.nickname,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            bio=user.bio,
+            profile_picture_url=user.profile_picture_url,
+            github_profile_url=user.github_profile_url,
+            linkedin_profile_url=user.linkedin_profile_url,
+            role=user.role,
+            email=user.email,
+            last_login_at=user.last_login_at,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            links=create_user_links(user.id, request)
+        )
+
+        # Debug Response
+        print(f"Response: {response}")
+        return response
+
+    except Exception as e:
+        print(f"Error Occurred: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {str(e)}")
+
 
 # Additional endpoints for update, delete, create, and list users follow a similar pattern, using
 # asynchronous database operations, handling security with OAuth2PasswordBearer, and enhancing response
@@ -120,8 +135,6 @@ async def delete_user(user_id: UUID, db: AsyncSession = Depends(get_db), token: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-
-
 @router.post("/users/", response_model=UserResponse, status_code=status.HTTP_201_CREATED, tags=["User Management Requires (Admin or Manager Roles)"], name="create_user")
 async def create_user(user: UserCreate, request: Request, db: AsyncSession = Depends(get_db), email_service: EmailService = Depends(get_email_service), token: str = Depends(oauth2_scheme), current_user: dict = Depends(require_role(["ADMIN", "MANAGER"]))):
     """
@@ -139,14 +152,17 @@ async def create_user(user: UserCreate, request: Request, db: AsyncSession = Dep
     Returns:
     - UserResponse: The newly created user's information along with navigation links.
     """
-    existing_user = await UserService.get_by_email(db, user.email)
-    if existing_user:
+    existing_email_user = await UserService.get_by_email(db, user.email)
+    if existing_email_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
+    
+    existing_nickname_user = await UserService.get_by_nickname(db, user.nickname)
+    if existing_nickname_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nickname already exists")
     
     created_user = await UserService.create(db, user.model_dump(), email_service)
     if not created_user:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user")
-    
     
     return UserResponse.model_construct(
         id=created_user.id,
@@ -154,6 +170,8 @@ async def create_user(user: UserCreate, request: Request, db: AsyncSession = Dep
         first_name=created_user.first_name,
         last_name=created_user.last_name,
         profile_picture_url=created_user.profile_picture_url,
+        linkedin_profile_url=created_user.linkedin_profile_url,
+        github_profile_url=created_user.github_profile_url,
         nickname=created_user.nickname,
         email=created_user.email,
         last_login_at=created_user.last_login_at,
@@ -161,7 +179,6 @@ async def create_user(user: UserCreate, request: Request, db: AsyncSession = Dep
         updated_at=created_user.updated_at,
         links=create_user_links(created_user.id, request)
     )
-
 
 @router.get("/users/", response_model=UserListResponse, tags=["User Management Requires (Admin or Manager Roles)"])
 async def list_users(
