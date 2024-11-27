@@ -85,7 +85,6 @@ async def get_user(user_id: UUID, request: Request, db: AsyncSession = Depends(g
         print(f"Error Occurred: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {str(e)}")
 
-
 # Additional endpoints for update, delete, create, and list users follow a similar pattern, using
 # asynchronous database operations, handling security with OAuth2PasswordBearer, and enhancing response
 # models with dynamic HATEOAS links.

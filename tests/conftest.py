@@ -45,6 +45,22 @@ engine = create_async_engine(TEST_DATABASE_URL, echo=settings.debug)
 AsyncTestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 AsyncSessionScoped = scoped_session(AsyncTestingSessionLocal)
 
+@pytest.fixture(scope="function")
+async def user_token(verified_user):
+    payload = {
+        "sub": str(verified_user.id),
+        "role": str(verified_user.role),
+    }
+    return create_access_token(data=payload)
+
+@pytest.fixture(scope="function")
+async def admin_token(admin_user):
+    # Use the admin user's details to create a token
+    payload = {
+        "sub": str(admin_user.id),
+        "role": "ADMIN",
+    }
+    return create_access_token(data=payload)
 
 @pytest.fixture
 def email_service():

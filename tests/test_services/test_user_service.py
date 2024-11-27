@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.dependencies import get_settings
 from app.models.user_model import User
 from app.services.user_service import UserService
+from uuid import UUID
 
 pytestmark = pytest.mark.asyncio
 
@@ -156,3 +157,19 @@ async def test_unlock_user_account(db_session, locked_user):
     assert unlocked, "The account should be unlocked"
     refreshed_user = await UserService.get_by_id(db_session, locked_user.id)
     assert not refreshed_user.is_locked, "The user should no longer be locked"
+
+# Test generating a unique nickname (covered by the _generate_unique_nickname method)
+async def test_generate_unique_nickname(db_session):
+    existing_user = await UserService.get_by_nickname(db_session, "existing_nickname")
+    if existing_user:
+        await UserService.update(db_session, existing_user.id, {"nickname": "new_nickname"})
+    nickname = await UserService._generate_unique_nickname(db_session)
+    assert nickname != "existing_nickname", "Generated nickname should be unique."
+
+# Test account locked when max attempts reached
+async def test_account_locked_on_max_failed_attempts(db_session, user):
+    max_failed_attempts = get_settings().max_login_attempts
+    for _ in range(max_failed_attempts):
+        await UserService.login_user(db_session, user.email, "IncorrectPassword!")
+    user = await UserService.get_by_email(db_session, user.email)
+    assert user.is_locked, "User account should be locked after exceeding max login attempts."
