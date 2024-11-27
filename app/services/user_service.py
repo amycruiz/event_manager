@@ -118,13 +118,25 @@ class UserService:
 
     @classmethod
     async def delete(cls, session: AsyncSession, user_id: UUID) -> bool:
-        user = await cls.get_by_id(session, user_id)
-        if not user:
-            logger.info(f"User with ID {user_id} not found.")
+        try:
+            user = await cls.get_by_id(session, user_id)
+            if not user:
+                logger.info(f"User with ID {user_id} not found.")
+                return False
+        
+            await session.delete(user)
+            await session.commit()
+            logger.info(f"User with ID {user_id} deleted successfully.")
+            return True
+
+        except SQLAlchemyError as e:
+            logger.error(f"Database error during user deletion: {e}")
+            await session.rollback()
             return False
-        await session.delete(user)
-        await session.commit()
-        return True
+
+        except Exception as e:
+            logger.error(f"Unexpected error during user deletion: {e}")
+            return False
 
     @classmethod
     async def list_users(cls, session: AsyncSession, skip: int = 0, limit: int = 10) -> List[User]:
